@@ -213,6 +213,71 @@ curl -X POST http://localhost:8000/api/v1/campaigns/daily-sync \
 python3 scripts/start_daily_pipeline.py
 ```
 
+**Option C: Wake, Scrape & Sleep Script (Lowest VPS Resource Usage)**
+```bash
+./scripts/run_and_sleep.sh
+```
+
+---
+
+## 💤 Low-Resource Idle Mode & VPS Crontab Setup
+
+To prevent Docker containers from constantly consuming RAM and CPU on your VPS between scraping runs, you can choose between two idle optimization methods:
+
+### Method 1: Automatic Autoscaling (Zero Configuration)
+The Celery worker in `docker-compose.yml` is configured with `--autoscale=4,1` and memory limits:
+- **Idle (No tasks)**: Automatically scales down to **1 idle process** sleeping on Redis BRPOP (~0.0% CPU, ~99MB RAM).
+- **Active (When scraping)**: Instantly wakes up, scales up to **4 worker threads**, completes discovery and Google Sheets sync, and immediately scales back down to idle mode.
+
+---
+
+### Method 2: Wake, Scrape & Sleep via Linux Crontab (0% CPU / 0 MB RAM Between Runs)
+
+If you want the background workers to be **completely stopped** between runs so that your VPS remains 100% idle until scraping time, use the provided [scripts/run_and_sleep.sh](scripts/run_and_sleep.sh).
+
+#### What the script does:
+1. Wakes up the Docker containers (`docker compose up -d`).
+2. Scrapes fresh leads from Google Places, scores them, and appends them to your Google Sheet.
+3. Automatically shuts down the heavy worker and beat containers (`docker compose stop worker beat`) until the next scheduled run.
+
+#### How to Set Up in VPS Crontab:
+
+1. Open your VPS crontab editor:
+   ```bash
+   crontab -e
+   ```
+
+2. If prompted, select your preferred editor (e.g. `1` for nano).
+
+3. Add one of the following cron schedules at the bottom of the file (replace `/home/codesec/ledgen` with your actual repository path):
+
+   **Example: Run every night at 02:00 AM:**
+   ```cron
+   0 2 * * * /home/codesec/ledgen/scripts/run_and_sleep.sh >> /home/codesec/ledgen/daily_scrape.log 2>&1
+   ```
+
+   **Example: Run every morning at 09:00 AM:**
+   ```cron
+   0 9 * * * /home/codesec/ledgen/scripts/run_and_sleep.sh >> /home/codesec/ledgen/daily_scrape.log 2>&1
+   ```
+
+   **Example: Run twice a day (09:00 AM and 09:00 PM):**
+   ```cron
+   0 9,21 * * * /home/codesec/ledgen/scripts/run_and_sleep.sh >> /home/codesec/ledgen/daily_scrape.log 2>&1
+   ```
+
+4. Save and exit (in nano: press `Ctrl+O`, `Enter`, then `Ctrl+X`).
+
+5. Verify that your cron job is active:
+   ```bash
+   crontab -l
+   ```
+
+6. To monitor the live log output during a run:
+   ```bash
+   tail -f /home/codesec/ledgen/daily_scrape.log
+   ```
+
 ---
 
 ## 🛠️ Local Development (Without Docker)
