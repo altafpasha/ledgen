@@ -1,0 +1,65 @@
+{
+  "kolargoldtech.in": {
+    "status": "success",
+    "organization": {
+      "name": "Kolar Gold Tech Solutions",
+      "estimated_num_employees": 15,
+      "annual_revenue": 500000,
+      "industries": ["Information Technology", "Software Development"]
+    },
+    "people": [
+      {
+        "name": "Ramesh Kumar",
+        "first_name": "Ramesh",
+        "last_name": "Kumar",
+        "title": "Founder & Managing Director",
+        "email": "ramesh.kumar@kolargoldtech.in",
+        "email_status": "verified",
+        "phone": "+91 98450 12345",
+        "linkedin_url": "https://linkedin.com/in/ramesh-kumar-kgf"
+      }
+    ]
+  },
+  "kolarsilks.com": {
+    "status": "success",
+    "organization": {
+      "name": "Kolar Silk Sarees Emporium",
+      "estimated_num_employees": 8,
+      "annual_revenue": 200000,
+      "industries": ["Textiles", "Apparel & Fashion"]
+    },
+    "people": [
+      {
+        "name": "Venkatesh Babu",
+        "first_name": "Venkatesh",
+        "last_name": "Babu",
+        "title": "Owner",
+        "email": "venkatesh@kolarsilks.com",
+        "email_status": "verified",
+        "phone": "+91 81522 23456",
+        "linkedin_url": null
+      }
+    ]
+  },
+  "cloudlogisticslab.co": {
+    "status": "success",
+    "organization": {
+      "name": "Indiranagar Cloud Logistics Lab",
+      "estimated_num_employees": 45,
+      "annual_revenue": 2500000,
+      "industries": ["Logistics & Supply Chain", "Cloud Systems"]
+    },
+    "people": [
+      {
+        "name": "Sunil Nair",
+        "first_name": "Sunil",
+        "last_name": "Nair",
+        "title": "Chief Executive Officer",
+        "email": "sunil.nair@cloudlogisticslab.co",
+        "email_status": "verified",
+        "phone": "+91 80 4123 9999",
+        "linkedin_url": "https://linkedin.com/in/sunil-nair-logistics"
+      }
+    ]
+  }
+}

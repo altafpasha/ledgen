@@ -1,0 +1,148 @@
+version: "3.8"
+
+networks:
+  internal_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+services:
+  # PostgreSQL Database (Self-hosted / Local)
+  postgres:
+    image: postgres:16-alpine
+    container_name: leadgen_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: leadgen
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/supabase_schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d leadgen"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Internal Redis Queue & Cache (NOT exposed publicly)
+  redis:
+    image: redis:7-alpine
+    container_name: leadgen_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # FastAPI REST API Gateway
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leadgen_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/leadgen
+      - DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/leadgen
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_net
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Celery Async Background Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leadgen_worker
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/leadgen
+      - DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/leadgen
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - internal_net
+
+  # Celery Beat Scheduler
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leadgen_beat
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/leadgen
+      - DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/leadgen
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - internal_net
+
+  # Caddy Reverse Proxy (Public Entry Point with Auto-HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    container_name: leadgen_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - API_DOMAIN=${API_DOMAIN:-localhost}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - internal_net
+
