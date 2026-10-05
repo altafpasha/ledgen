@@ -44,18 +44,24 @@ if daily_campaign:
     campaign_id = daily_campaign["id"]
     print(f"ℹ️ Found existing Daily Campaign: '{daily_campaign['name']}' ({campaign_id})")
 else:
+    locations_cfg = config.get("DEFAULT_SCRAPE_LOCATIONS", "KGF, Bangarapet, Bangalore")
+    categories_cfg = config.get("DEFAULT_SCRAPE_CATEGORIES", "Dental Clinic, Healthcare Clinic, Software Company, Digital Marketing, Retail")
+    locations = [loc.strip() for loc in locations_cfg.split(",") if loc.strip()]
+    categories = [cat.strip() for cat in categories_cfg.split(",") if cat.strip()]
+    lead_limit = int(config.get("DEFAULT_DAILY_LEAD_LIMIT", 50))
+
     campaign_payload = {
         "name": "Daily 50+ Leads Auto-Pipeline",
-        "description": "Daily automated scraping, Jev qualification, Apollo enrichment, and Google Sheets sync for at least 50 leads/day",
-        "locations": ["Bangalore, India", "Whitefield, Bangalore", "Indiranagar, Bangalore", "Koramangala, Bangalore"],
-        "categories": ["Dental Clinic", "Healthcare Clinic", "Software Development", "Digital Marketing"],
-        "max_leads": 60,
+        "description": "Daily automated scraping, Jev qualification, Apollo enrichment, and Google Sheets sync",
+        "locations": locations,
+        "categories": categories,
+        "max_leads": lead_limit,
         "enrich_contacts": True,
         "analyze_websites": True,
         "ai_qualification": True,
         "google_sheet_sync": True,
-        "max_apollo_credits": 60,
-        "max_ai_requests": 60,
+        "max_apollo_credits": lead_limit,
+        "max_ai_requests": lead_limit,
     }
     create_res = client.post("/api/v1/campaigns", headers=headers, json=campaign_payload)
     if create_res.status_code not in (200, 201):

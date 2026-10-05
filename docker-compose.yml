@@ -16,6 +16,7 @@ services:
     image: postgres:16-alpine
     container_name: leadgen_postgres
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -38,7 +39,8 @@ services:
     image: redis:7-alpine
     container_name: leadgen_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    mem_limit: 256m
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
@@ -56,6 +58,7 @@ services:
       dockerfile: Dockerfile
     container_name: leadgen_api
     restart: unless-stopped
+    mem_limit: 512m
     env_file:
       - .env
     environment:
@@ -86,7 +89,8 @@ services:
       dockerfile: Dockerfile
     container_name: leadgen_worker
     restart: unless-stopped
-    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=4
+    mem_limit: 768m
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --autoscale=4,1
     env_file:
       - .env
     environment:
@@ -110,6 +114,7 @@ services:
       dockerfile: Dockerfile
     container_name: leadgen_beat
     restart: unless-stopped
+    mem_limit: 256m
     command: celery -A app.workers.celery_app.celery_app beat --loglevel=info
     env_file:
       - .env
@@ -132,6 +137,7 @@ services:
     image: caddy:2-alpine
     container_name: leadgen_caddy
     restart: unless-stopped
+    mem_limit: 128m
     ports:
       - "${CADDY_HTTP_PORT:-80}:80"
       - "${CADDY_HTTPS_PORT:-443}:443"
