@@ -15,8 +15,12 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "lead-intelligence-api"
     app_env: str = "development"
+    # Port & Host Bindings
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    postgres_port: int = 5432
+    caddy_http_port: int = 8080
+    caddy_https_port: int = 8443
     debug: bool = False
 
     # Database
@@ -73,6 +77,17 @@ class Settings(BaseSettings):
     default_scrape_locations: str = "KGF, Bangarapet, Bangalore"
     default_scrape_categories: str = "Dental Clinic, Healthcare Clinic, Software Company, Digital Marketing, Retail"
     default_daily_lead_limit: int = 50
+
+    @field_validator("enable_frontend_api", "enable_api_docs", "mock_providers", mode="before")
+    @classmethod
+    def parse_bool_lenient(cls, v: object) -> bool:
+        if isinstance(v, str):
+            v_clean = v.strip().lower()
+            if v_clean in ("true", "1", "yes", "t", "y"):
+                return True
+            if v_clean in ("false", "fales", "0", "no", "f", "n"):
+                return False
+        return bool(v)
 
     # Concurrency & Budget Guardrails
     max_concurrent_jobs: int = 5
