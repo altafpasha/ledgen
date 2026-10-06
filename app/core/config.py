@@ -74,8 +74,8 @@ class Settings(BaseSettings):
     enable_api_docs: bool = True
 
     # Configurable Daily Scraping Targets
-    default_scrape_locations: str = "KGF, Bangarapet, Bangalore"
-    default_scrape_categories: str = "Dental Clinic, Healthcare Clinic, Software Company, Digital Marketing, Retail"
+    default_scrape_locations: str = "KGF, Bangarapet"
+    default_scrape_categories: str = "Dental Clinic, Healthcare Clinic, Digital Marketing, Retail"
     default_daily_lead_limit: int = 50
 
     @field_validator("enable_frontend_api", "enable_api_docs", "mock_providers", mode="before")
@@ -102,13 +102,13 @@ class Settings(BaseSettings):
     @property
     def scrape_location_list(self) -> List[str]:
         if not self.default_scrape_locations:
-            return ["Bangalore, India"]
+            return ["KGF", "Bangarapet"]
         return [loc.strip() for loc in self.default_scrape_locations.split(",") if loc.strip()]
 
     @property
     def scrape_category_list(self) -> List[str]:
         if not self.default_scrape_categories:
-            return ["Software Company", "Dental Clinic"]
+            return ["Dental Clinic", "Healthcare Clinic", "Digital Marketing", "Retail"]
         return [cat.strip() for cat in self.default_scrape_categories.split(",") if cat.strip()]
 
     @property

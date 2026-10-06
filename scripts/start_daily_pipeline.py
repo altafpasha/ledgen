@@ -31,6 +31,12 @@ headers = {"Authorization": f"Bearer {token}"}
 print("✅ Authenticated successfully.")
 
 # Step 2: Check or create the Daily 50+ Leads Campaign
+locations_cfg = config.get("DEFAULT_SCRAPE_LOCATIONS", "KGF, Bangarapet")
+categories_cfg = config.get("DEFAULT_SCRAPE_CATEGORIES", "Dental Clinic, Healthcare Clinic, Digital Marketing, Retail")
+locations = [loc.strip() for loc in locations_cfg.split(",") if loc.strip()]
+categories = [cat.strip() for cat in categories_cfg.split(",") if cat.strip()]
+lead_limit = int(config.get("DEFAULT_DAILY_LEAD_LIMIT", 50))
+
 list_res = client.get("/api/v1/campaigns?limit=50", headers=headers)
 campaigns = list_res.json().get("items", []) if list_res.status_code == 200 else []
 
@@ -43,13 +49,22 @@ for c in campaigns:
 if daily_campaign:
     campaign_id = daily_campaign["id"]
     print(f"ℹ️ Found existing Daily Campaign: '{daily_campaign['name']}' ({campaign_id})")
+    # Always synchronize existing campaign with latest .env configuration
+    sync_res = client.patch(
+        f"/api/v1/campaigns/{campaign_id}",
+        headers=headers,
+        json={
+            "locations": locations,
+            "categories": categories,
+            "max_leads": lead_limit,
+            "status": "ACTIVE",
+        },
+    )
+    if sync_res.status_code == 200:
+        print(f"🔄 Synchronized targets from .env -> Locations: {locations} | Categories: {categories}")
+    else:
+        print(f"⚠️ Note: Failed to update campaign: {sync_res.text}")
 else:
-    locations_cfg = config.get("DEFAULT_SCRAPE_LOCATIONS", "KGF, Bangarapet, Bangalore")
-    categories_cfg = config.get("DEFAULT_SCRAPE_CATEGORIES", "Dental Clinic, Healthcare Clinic, Software Company, Digital Marketing, Retail")
-    locations = [loc.strip() for loc in locations_cfg.split(",") if loc.strip()]
-    categories = [cat.strip() for cat in categories_cfg.split(",") if cat.strip()]
-    lead_limit = int(config.get("DEFAULT_DAILY_LEAD_LIMIT", 50))
-
     campaign_payload = {
         "name": "Daily 50+ Leads Auto-Pipeline",
         "description": "Daily automated scraping, Jev qualification, Apollo enrichment, and Google Sheets sync",
@@ -72,7 +87,7 @@ else:
     print(f"✅ Created Daily Campaign: '{daily_campaign['name']}' ({campaign_id})")
 
 # Ensure campaign is ACTIVE
-client.put(f"/api/v1/campaigns/{campaign_id}", headers=headers, json={"status": "ACTIVE"})
+client.patch(f"/api/v1/campaigns/{campaign_id}", headers=headers, json={"status": "ACTIVE"})
 
 # Step 3: Trigger today's live discovery run
 print("\n" + "=" * 70)

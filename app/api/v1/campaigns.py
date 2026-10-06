@@ -97,7 +97,13 @@ async def get_campaign_endpoint(
 @router.patch(
     "/{campaign_id}",
     response_model=CampaignRead,
-    summary="Update Campaign",
+    summary="Update Campaign (PATCH)",
+    description="Updates editable parameters of an existing campaign.",
+)
+@router.put(
+    "/{campaign_id}",
+    response_model=CampaignRead,
+    summary="Update Campaign (PUT)",
     description="Updates editable parameters of an existing campaign.",
 )
 async def update_campaign_endpoint(

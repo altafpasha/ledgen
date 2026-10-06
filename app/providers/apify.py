@@ -55,7 +55,13 @@ class ApifyLeadDiscoveryProvider(LeadDiscoveryProvider):
         city = item.get("city")
         district = item.get("district")
         state = item.get("state")
-        country = item.get("country", "India")
+        raw_country = item.get("country") or item.get("countryCode")
+        if raw_country:
+            country = str(raw_country).strip()
+        elif address and ("united states" in str(address).lower() or " usa" in str(address).lower() or ", ny " in str(address).lower()):
+            country = "United States"
+        else:
+            country = "India"
         pincode = item.get("postalCode") or item.get("pincode") or item.get("zip")
 
         # Category
@@ -152,6 +158,38 @@ class ApifyLeadDiscoveryProvider(LeadDiscoveryProvider):
 
         return records
 
+    @staticmethod
+    def is_location_relevant(record: BusinessRecord, target_locations: List[str]) -> bool:
+        """
+        Validates that a discovered business actually belongs to one of the target locations.
+        Prevents global or foreign corporate headquarters (e.g. New York, USA)
+        from being wrongly included when scraping regional locations.
+        """
+        if not target_locations:
+            return True
+
+        blob = f"{record.city or ''} {record.address or ''} {record.district or ''} {record.state or ''}".lower()
+
+        # Check if any target location keyword matches the record
+        for loc in target_locations:
+            loc_clean = loc.strip().lower()
+            if not loc_clean:
+                continue
+            # Direct substring check
+            if loc_clean in blob:
+                return True
+            # Split comma separated e.g. "Bangalore, India" -> "bangalore", "india"
+            parts = [p.strip() for p in loc_clean.split(",") if len(p.strip()) >= 3]
+            for part in parts:
+                if part in blob:
+                    return True
+
+        # If record explicitly specifies a foreign or non-matching city, reject it
+        if record.city:
+            return False
+
+        return True
+
     async def _run_live_apify(
         self,
         locations: List[str],
@@ -170,7 +208,7 @@ class ApifyLeadDiscoveryProvider(LeadDiscoveryProvider):
         places_per_search = max(25, (limit // max(1, len(search_terms))) + 10)
 
         payload = {
-            "searchStringsArray": search_terms[:5],
+            "searchStringsArray": search_terms[:10],
             "maxCrawledPlacesPerSearch": places_per_search,
             "language": "en",
         }
@@ -192,6 +230,12 @@ class ApifyLeadDiscoveryProvider(LeadDiscoveryProvider):
             for item in raw_items:
                 record = self.normalize_item(item)
                 if record:
+                    if not self.is_location_relevant(record, locations):
+                        logger.info(
+                            f"Filtering out irrelevant location record: '{record.business_name}' in '{record.city}' (target locations: {locations})",
+                            extra={"event": "apify_location_filtered"}
+                        )
+                        continue
                     records.append(record)
                     if len(records) >= limit:
                         break
